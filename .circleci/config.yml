@@ -1,0 +1,38 @@
+version: 2
+jobs:
+  deploy-latest-docker-image:
+    docker:
+      - image: docker:17.12.0-ce
+
+    working_directory: ~/build
+    steps:
+      - checkout
+      - setup_remote_docker
+      
+      - run:
+          name: build-image
+          command: |
+            apk --no-cache add git bash openssh
+            export BUILD_REPO=`git config --get remote.origin.url`
+            export BUILD_REV=`git rev-parse HEAD`
+            docker build \
+              --label BUILD_REPO=${BUILD_REPO} \
+              --label BUILD_COMMIT=${BUILD_REV} \
+              -t opuscapita/ci-node6:latest .
+            
+      - run:
+          name: deploy-image
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push opuscapita/ci-node6:latest
+
+workflows:
+  version: 2
+  build-all:
+    jobs:
+      - deploy-latest-docker-image:
+          filters:
+            branches:
+              only:
+                - master
+            
